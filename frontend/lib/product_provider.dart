@@ -1,6 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'config.dart';
 import 'product.dart';
 import 'api_service.dart';
 
@@ -21,10 +21,14 @@ class ProductProvider extends ChangeNotifier {
 
   ProductProvider({required this.api});
 
-  // Getters
   List<Product> get products => _filteredProducts;
   List<String> get categories {
-    return _products.map((p) => p.kategori).where((k) => k.isNotEmpty).toSet().toList()..sort();
+    return _products
+        .map((p) => p.kategori)
+        .where((k) => k.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
   }
   ConnectionStatus get status => _status;
   DateTime? get lastUpdated => _lastUpdated;
@@ -36,7 +40,6 @@ class ProductProvider extends ChangeNotifier {
   double get maxPrice => _maxPrice;
   int get totalProducts => _products.length;
 
-  // Filter products
   void _applyFilters() {
     _filteredProducts = _products.where((p) {
       if (_searchQuery.isNotEmpty &&
@@ -86,7 +89,6 @@ class ProductProvider extends ChangeNotifier {
     }
   }
 
-  // Load products
   Future<bool> loadProducts() async {
     _isLoading = true;
     notifyListeners();
@@ -130,10 +132,20 @@ class ProductProvider extends ChangeNotifier {
     return true;
   }
 
-  // Cache
   Future<void> _saveToCache() async {
     final box = Hive.box('products');
-    final data = _products.map((p) => jsonEncode(p.toJson())).toList();
+    final data = _products
+        .map((p) => jsonEncode({
+              'id': p.id,
+              'nama': p.nama,
+              'harga': p.harga,
+              'kategori': p.kategori,
+              'gambar': p.gambar,
+              'versi_gambar': p.versiGambar,
+              'created_at': p.createdAt?.toIso8601String(),
+              'updated_at': p.updatedAt?.toIso8601String(),
+            }))
+        .toList();
     await box.put('data', data);
     await box.put('updated', _lastUpdated?.toIso8601String());
   }
@@ -142,10 +154,23 @@ class ProductProvider extends ChangeNotifier {
     final box = Hive.box('products');
     final data = box.get('data');
     if (data != null && data is List) {
-      _products = data
-          .map((e) => Product.fromJson(jsonDecode(e)))
-          .toList()
-          .cast<Product>();
+      _products = data.map((e) {
+        final map = jsonDecode(e);
+        return Product(
+          id: map['id'] ?? 0,
+          nama: map['nama'] ?? '',
+          harga: map['harga'] ?? 0,
+          kategori: map['kategori'] ?? '',
+          gambar: map['gambar'] ?? '',
+          versiGambar: map['versi_gambar'] ?? '',
+          createdAt: map['created_at'] != null
+              ? DateTime.tryParse(map['created_at'])
+              : null,
+          updatedAt: map['updated_at'] != null
+              ? DateTime.tryParse(map['updated_at'])
+              : null,
+        );
+      }).toList();
       final updated = box.get('updated');
       if (updated != null) {
         _lastUpdated = DateTime.tryParse(updated);
@@ -155,7 +180,6 @@ class ProductProvider extends ChangeNotifier {
     return false;
   }
 
-  // CRUD
   Future<void> createProduct(Product product) async {
     final created = await api.createProduct(product);
     _products.add(created);
@@ -204,6 +228,3 @@ class ProductProvider extends ChangeNotifier {
     await _saveToCache();
   }
 }
-
-// Helper untuk JSON encode di Hive
-import 'dart:convert';
