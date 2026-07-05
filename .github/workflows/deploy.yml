@@ -3,6 +3,9 @@ name: Build APK
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'README.md'
+      - '**.md'
 
 env:
   FLUTTER_VERSION: '3.24.0'
@@ -22,13 +25,14 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Create keystore
+      - name: Create keystore from secret
         run: |
           mkdir -p keystore
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore/warung-keystore.jks
 
       - name: Create key.properties
         run: |
+          mkdir -p frontend/android
           cat > frontend/android/key.properties << PROPS
           storeFile=${{ github.workspace }}/keystore/warung-keystore.jks
           storePassword=${{ secrets.KEYSTORE_PASSWORD }}
