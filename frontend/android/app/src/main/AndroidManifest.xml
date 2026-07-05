@@ -8,7 +8,7 @@
     <application
         android:label="Warung Mama Fahri"
         android:name="${applicationName}"
-        android:icon="@drawable/ic_launcher_backup"
+        android:icon="@drawable/ic_launcher"
         android:usesCleartextTraffic="true">
 
         <activity
