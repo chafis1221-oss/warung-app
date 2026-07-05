@@ -34,7 +34,9 @@ class ProductCard extends StatelessWidget {
               ProductImage(
                 imageUrl: product.imageUrl.isEmpty
                     ? ''
-                    : '$imageBaseUrl${product.imageUrl}',
+                    : product.isFullUrl
+                        ? product.imageUrl
+                        : '$imageBaseUrl${product.imageUrl}',
                 version: product.versiGambar,
                 size: 56,
               ),
@@ -118,10 +120,18 @@ class ProductImage extends StatelessWidget {
       );
     }
 
+    // Build final URL dengan cache-busting
+    String finalUrl = imageUrl;
+    if (version.isNotEmpty) {
+      finalUrl += '?v=$version';
+    }
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: CachedNetworkImage(
-        imageUrl: '$imageUrl?v=$version',
+        key: ValueKey(finalUrl),        // Reset widget jika URL berubah
+        cacheKey: finalUrl,             // Cache terpisah per URL
+        imageUrl: finalUrl,
         width: size,
         height: size,
         fit: BoxFit.cover,

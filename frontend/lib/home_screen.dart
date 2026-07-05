@@ -152,28 +152,69 @@ class _HomeScreenState extends State<HomeScreen> {
                             itemCount: provider.products.length,
                             itemBuilder: (_, i) {
                               final product = provider.products[i];
-                              return ProductCard(
-                                product: product,
-                                imageBaseUrl: provider.api.baseUrl,
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => DetailScreen(
-                                        productId: product.id,
-                                        imageBaseUrl: provider.api.baseUrl,
+                              // Samakan cara bangun URL dengan AdminScreen
+                              final imageUrl = product.gambar.isNotEmpty
+                                  ? (product.isFullUrl
+                                      ? product.imageUrl
+                                      : '${provider.api.baseUrl}${product.imageUrl}')
+                                  : '';
+                              return Card(
+                                color: AppConfig.cardWhite,
+                                elevation: 1,
+                                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                child: InkWell(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => DetailScreen(
+                                          productId: product.id,
+                                          imageBaseUrl: provider.api.baseUrl,
+                                        ),
                                       ),
+                                    );
+                                  },
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Row(
+                                      children: [
+                                        ProductImage(
+                                          imageUrl: imageUrl,
+                                          version: product.versiGambar,
+                                          size: 56,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(product.nama, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppConfig.textDark), maxLines: 2, overflow: TextOverflow.ellipsis),
+                                              const SizedBox(height: 4),
+                                              Text(product.kategori, style: const TextStyle(fontSize: 12, color: AppConfig.textLight)),
+                                              const SizedBox(height: 4),
+                                              Text(product.hargaFormatted, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppConfig.darkGreen)),
+                                            ],
+                                          ),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.edit, size: 20),
+                                          color: AppConfig.primaryGreen,
+                                          onPressed: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) => AdminScreen(editProduct: product),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                        const Icon(Icons.chevron_right, color: AppConfig.textLight),
+                                      ],
                                     ),
-                                  );
-                                },
-                                onEdit: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => AdminScreen(editProduct: product),
-                                    ),
-                                  );
-                                },
+                                  ),
+                                ),
                               );
                             },
                           ),
@@ -202,22 +243,14 @@ class _HomeScreenState extends State<HomeScreen> {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: FilterChip(
-        label: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: isSelected ? Colors.white : AppConfig.textDark,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-          ),
-        ),
+        label: Text(label, style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : AppConfig.textDark, fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal)),
         selected: isSelected,
         onSelected: (_) => provider.setCategory(value),
         backgroundColor: Colors.white,
         selectedColor: AppConfig.darkGreen,
         checkmarkColor: Colors.white,
         side: BorderSide.none,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
     );
   }
