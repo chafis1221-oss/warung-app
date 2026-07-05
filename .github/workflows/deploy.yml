@@ -23,14 +23,16 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Decode keystore
+      - name: Create keystore from secret
         run: |
+          mkdir -p keystore
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore/warung-keystore.jks
 
       - name: Create key.properties
         run: |
+          mkdir -p frontend/android
           cat > frontend/android/key.properties << PROPS
-          storeFile=../../keystore/warung-keystore.jks
+          storeFile=../keystore/warung-keystore.jks
           storePassword=${{ secrets.KEYSTORE_PASSWORD }}
           keyAlias=${{ secrets.KEY_ALIAS }}
           keyPassword=${{ secrets.KEY_PASSWORD }}
