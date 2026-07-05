@@ -1,17 +1,13 @@
-name: Deploy PWA to Vercel
+name: Build PWA
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - 'README.md'
-      - '**.md'
+  workflow_dispatch:  # Manual trigger
 
 env:
   FLUTTER_VERSION: '3.24.0'
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,11 +21,16 @@ jobs:
           flutter pub get
           flutter build web --release
 
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
+      - name: Zip PWA
+        run: |
+          cd frontend/build/web
+          zip -r ../../../warung-pwa.zip .
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
         with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: chafis-projects-b7dd0a35
-          vercel-project-id: prj_WUByXtlHZhGy3Jvvf0mKt1rOzCpi
-          vercel-args: '--prod'
-          working-directory: frontend/build/web
+          tag_name: pwa-v${{ github.run_number }}
+          name: PWA v${{ github.run_number }}
+          files: warung-pwa.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
