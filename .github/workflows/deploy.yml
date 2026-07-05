@@ -22,16 +22,15 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Create keystore from secret
+      - name: Create keystore
         run: |
           mkdir -p keystore
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore/warung-keystore.jks
 
       - name: Create key.properties
         run: |
-          mkdir -p frontend/android
           cat > frontend/android/key.properties << PROPS
-          storeFile=../keystore/warung-keystore.jks
+          storeFile=${{ github.workspace }}/keystore/warung-keystore.jks
           storePassword=${{ secrets.KEYSTORE_PASSWORD }}
           keyAlias=${{ secrets.KEY_ALIAS }}
           keyPassword=${{ secrets.KEY_PASSWORD }}
@@ -43,13 +42,13 @@ jobs:
           flutter pub get
           flutter build apk --release
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: app-release
           path: frontend/build/app/outputs/flutter-apk/app-release.apk
 
-      - name: Create GitHub Release
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.run_number }}
