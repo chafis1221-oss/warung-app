@@ -64,7 +64,6 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: AppConfig.primaryGreen,
           elevation: 0,
           actions: [
-            // Tombol kalkulator
             IconButton(
               icon: const Icon(Icons.calculate, color: Colors.white),
               onPressed: () {
@@ -97,7 +96,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
             return Column(
               children: [
-                // Search bar
                 Container(
                   color: AppConfig.primaryGreen,
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -128,8 +126,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-
-                // Filter chips
                 if (provider.categories.isNotEmpty)
                   Container(
                     color: AppConfig.primaryGreen,
@@ -145,8 +141,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
-
-                // Product list
                 Expanded(
                   child: provider.products.isEmpty
                       ? const EmptyState()
@@ -176,7 +170,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (_) => const AdminScreen(),
+                                      builder: (_) => AdminScreen(editProduct: product),
                                     ),
                                   );
                                 },

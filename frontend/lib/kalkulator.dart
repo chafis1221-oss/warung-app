@@ -44,11 +44,20 @@ class _KalkulatorScreenState extends State<KalkulatorScreen> {
           double second = double.parse(_display);
           double result = 0;
           switch (_operator) {
-            case '+': result = _currentValue + second; break;
-            case '-': result = _currentValue - second; break;
-            case '×': result = _currentValue * second; break;
-            case '÷': result = second != 0 ? _currentValue / second : 0; break;
-            default: result = second;
+            case '+':
+              result = _currentValue + second;
+              break;
+            case '-':
+              result = _currentValue - second;
+              break;
+            case '×':
+              result = _currentValue * second;
+              break;
+            case '÷':
+              result = second != 0 ? _currentValue / second : 0;
+              break;
+            default:
+              result = second;
           }
           String history = '$_currentValue $_operator $second = $result';
           _history.insert(0, history);
@@ -71,12 +80,13 @@ class _KalkulatorScreenState extends State<KalkulatorScreen> {
     });
   }
 
-  Widget _btn(String label, {Color? bg, Color? fg}) {
+  Widget _btn(String label, {Color? bg, Color? fg, int flex = 1}) {
     return Expanded(
+      flex: flex,
       child: Padding(
         padding: const EdgeInsets.all(3),
         child: ElevatedButton(
-          onPressed: () => _press(label),
+          onPressed: label.isEmpty ? null : () => _press(label),
           style: ElevatedButton.styleFrom(
             backgroundColor: bg ?? Colors.white,
             foregroundColor: fg ?? AppConfig.textDark,
@@ -198,11 +208,11 @@ class _KalkulatorScreenState extends State<KalkulatorScreen> {
               _btn('3'),
               _btn('=', bg: AppConfig.primaryGreen, fg: Colors.white),
             ]),
+            // Baris terakhir: 0 (lebar 2), ., (tanpa =)
             Row(children: [
-              _btn('0'),
+              _btn('0', flex: 2),
               _btn('00'),
               _btn('.'),
-              _btn('=', bg: AppConfig.primaryGreen, fg: Colors.white),
             ]),
           ],
         ),

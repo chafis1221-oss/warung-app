@@ -7,7 +7,8 @@ import 'product_provider.dart';
 import 'widgets.dart';
 
 class AdminScreen extends StatefulWidget {
-  const AdminScreen({super.key});
+  final Product? editProduct;
+  const AdminScreen({super.key, this.editProduct});
 
   @override
   State<AdminScreen> createState() => _AdminScreenState();
@@ -35,6 +36,14 @@ class _AdminScreenState extends State<AdminScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+
+    // Jika ada produk yang mau diedit, langsung isi form
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.editProduct != null) {
+        _editProduct(widget.editProduct!);
+        _tabController.animateTo(0); // Pindah ke tab Form
+      }
+    });
   }
 
   @override
@@ -97,7 +106,6 @@ class _AdminScreenState extends State<AdminScreen>
         final created = await provider.createProduct(product);
         if (_imagePath != null) {
           await provider.uploadImage(created.id, _imagePath!);
-          // Refresh data dari server untuk dapat gambar terbaru
           await provider.loadProducts();
         }
         _showSnack('Produk ditambahkan', false);
@@ -147,7 +155,6 @@ class _AdminScreenState extends State<AdminScreen>
       _selectedCategory = product.kategori;
       _imagePath = null;
     });
-    _tabController.animateTo(0);
   }
 
   void _showSnack(String message, bool isError) {
@@ -171,7 +178,7 @@ class _AdminScreenState extends State<AdminScreen>
     return Scaffold(
       backgroundColor: AppConfig.backgroundWhite,
       appBar: AppBar(
-        title: const Text('Admin'),
+        title: Text(widget.editProduct != null ? 'Edit Produk' : 'Admin'),
         backgroundColor: AppConfig.primaryGreen,
         foregroundColor: Colors.white,
         bottom: TabBar(
@@ -335,7 +342,9 @@ class _AdminScreenState extends State<AdminScreen>
                             child: ListTile(
                               leading: ProductImage(
                                 imageUrl: product.gambar.isNotEmpty
-                                    ? '${provider.api.baseUrl}${product.imageUrl}'
+                                    ? (product.isFullUrl
+                                        ? product.imageUrl
+                                        : '${provider.api.baseUrl}${product.imageUrl}')
                                     : '',
                                 version: product.versiGambar,
                                 size: 40,
@@ -378,8 +387,6 @@ class _AdminScreenState extends State<AdminScreen>
               ),
             ],
           ),
-
-          // Hanya 2 tab
         ],
       ),
     );
