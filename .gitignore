@@ -1,0 +1,6 @@
+keystore/warung-keystore.jks
+*.jks
+frontend/android/key.properties
+frontend/android/app/key.properties
+frontend/build/
+backend/warung-server

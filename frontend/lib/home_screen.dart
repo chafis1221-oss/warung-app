@@ -1,0 +1,189 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'config.dart';
+import 'product_provider.dart';
+import 'widgets.dart';
+import 'detail_screen.dart';
+import 'admin_screen.dart';
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ProductProvider>().loadProducts();
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppConfig.backgroundWhite,
+      appBar: AppBar(
+        title: const Text(
+          AppConfig.appName,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor: AppConfig.primaryGreen,
+        elevation: 0,
+        actions: [
+          Consumer<ProductProvider>(
+            builder: (_, provider, __) => Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: StatusBar(
+                isOnline: provider.status == ConnectionStatus.online,
+                isLocal: provider.isLocal,
+                lastUpdated: provider.lastUpdated,
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: Consumer<ProductProvider>(
+        builder: (context, provider, _) {
+          if (provider.isLoading) {
+            return const Center(
+              child: CircularProgressIndicator(color: AppConfig.primaryGreen),
+            );
+          }
+
+          return Column(
+            children: [
+              // Search bar
+              Container(
+                color: AppConfig.primaryGreen,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (q) => provider.setSearch(q),
+                  style: const TextStyle(fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: '🔍  Cari produk...',
+                    hintStyle: const TextStyle(color: AppConfig.textLight),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: BorderSide.none,
+                    ),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () {
+                              _searchController.clear();
+                              provider.setSearch('');
+                            },
+                          )
+                        : null,
+                  ),
+                ),
+              ),
+
+              // Filter chips
+              if (provider.categories.isNotEmpty)
+                Container(
+                  color: AppConfig.primaryGreen,
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildChip('Semua', '', provider),
+                        ...provider.categories.map((cat) => _buildChip(cat, cat, provider)),
+                      ],
+                    ),
+                  ),
+                ),
+
+              // Product list
+              Expanded(
+                child: provider.products.isEmpty
+                    ? const EmptyState()
+                    : RefreshIndicator(
+                        color: AppConfig.primaryGreen,
+                        onRefresh: () => provider.loadProducts(),
+                        child: ListView.builder(
+                          padding: const EdgeInsets.only(top: 8, bottom: 80),
+                          itemCount: provider.products.length,
+                          itemBuilder: (_, i) {
+                            final product = provider.products[i];
+                            return ProductCard(
+                              product: product,
+                              imageBaseUrl: provider.api.baseUrl,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => DetailScreen(
+                                      productId: product.id,
+                                      imageBaseUrl: provider.api.baseUrl,
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+              ),
+            ],
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppConfig.darkGreen,
+        child: const Icon(Icons.settings, color: Colors.white),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AdminScreen()),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildChip(String label, String value, ProductProvider provider) {
+    final isSelected = provider.selectedCategory == value;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        label: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: isSelected ? Colors.white : AppConfig.textDark,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+        selected: isSelected,
+        onSelected: (_) => provider.setCategory(value),
+        backgroundColor: Colors.white,
+        selectedColor: AppConfig.darkGreen,
+        checkmarkColor: Colors.white,
+        side: BorderSide.none,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      ),
+    );
+  }
+}
