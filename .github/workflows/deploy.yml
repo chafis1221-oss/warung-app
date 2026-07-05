@@ -1,4 +1,4 @@
-name: Build APK
+name: Build APK + Deploy PWA
 
 on:
   push:
@@ -11,21 +11,19 @@ env:
   FLUTTER_VERSION: '3.24.0'
 
 jobs:
-  build:
+  build-android:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
-
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Create keystore from secret
+      - name: Create keystore
         run: |
           mkdir -p keystore
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore/warung-keystore.jks
@@ -60,3 +58,27 @@ jobs:
           files: frontend/build/app/outputs/flutter-apk/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-vercel:
+    needs: build-android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Build Flutter Web
+        run: |
+          cd frontend
+          flutter pub get
+          flutter build web --release
+
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+          working-directory: frontend/build/web

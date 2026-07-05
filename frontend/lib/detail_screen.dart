@@ -21,10 +21,20 @@ class DetailScreen extends StatelessWidget {
 
     if (product == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Produk')),
+        backgroundColor: AppConfig.backgroundWhite,
+        appBar: AppBar(
+          title: const Text('Produk'),
+          backgroundColor: AppConfig.primaryGreen,
+          foregroundColor: Colors.white,
+        ),
         body: const EmptyState(message: 'Produk tidak ditemukan'),
       );
     }
+
+    // Samakan logic URL dengan home_screen
+    final imageUrl = product.gambar.isNotEmpty
+        ? (product.isFullUrl ? product.imageUrl : '$imageBaseUrl${product.imageUrl}')
+        : '';
 
     return Scaffold(
       backgroundColor: AppConfig.backgroundWhite,
@@ -42,75 +52,33 @@ class DetailScreen extends StatelessWidget {
               width: double.infinity,
               height: 250,
               color: AppConfig.lightGreen.withOpacity(0.1),
-              child: product.gambar.isNotEmpty
-                  ? ProductImage(
-                      imageUrl: '$imageBaseUrl${product.imageUrl}',
-                      version: product.versiGambar,
-                      size: 250,
-                    )
-                  : Icon(
-                      Icons.shopping_bag,
-                      size: 80,
-                      color: AppConfig.primaryGreen.withOpacity(0.3),
-                    ),
+              child: imageUrl.isNotEmpty
+                  ? ProductImage(imageUrl: imageUrl, version: product.versiGambar, size: 250)
+                  : Icon(Icons.shopping_bag, size: 80, color: AppConfig.primaryGreen.withOpacity(0.3)),
             ),
-
-            // Info produk
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    product.nama,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: AppConfig.textDark,
-                    ),
-                  ),
+                  Text(product.nama, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppConfig.textDark)),
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppConfig.lightGreen.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      product.kategori,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppConfig.darkGreen,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(color: AppConfig.lightGreen.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+                    child: Text(product.kategori, style: const TextStyle(fontSize: 13, color: AppConfig.darkGreen, fontWeight: FontWeight.w600)),
                   ),
                   const SizedBox(height: 20),
-                  Text(
-                    product.hargaFormatted,
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      color: AppConfig.darkGreen,
-                    ),
-                  ),
+                  Text(product.hargaFormatted, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppConfig.darkGreen)),
                   const SizedBox(height: 24),
                   const Divider(),
                   const SizedBox(height: 16),
-
-                  // Info tambahan
                   _infoRow(Icons.inventory, 'ID Produk', '#${product.id}'),
                   const SizedBox(height: 8),
                   if (product.updatedAt != null)
-                    _infoRow(
-                      Icons.update,
-                      'Terakhir diupdate',
-                      '${product.updatedAt!.day}/${product.updatedAt!.month}/${product.updatedAt!.year} '
-                          '${product.updatedAt!.hour}:${product.updatedAt!.minute.toString().padLeft(2, '0')}',
-                    ),
+                    _infoRow(Icons.update, 'Terakhir diupdate',
+                        '${product.updatedAt!.day}/${product.updatedAt!.month}/${product.updatedAt!.year} '
+                        '${product.updatedAt!.hour}:${product.updatedAt!.minute.toString().padLeft(2, '0')}'),
                 ],
               ),
             ),
@@ -125,21 +93,8 @@ class DetailScreen extends StatelessWidget {
       children: [
         Icon(icon, size: 16, color: AppConfig.textLight),
         const SizedBox(width: 8),
-        Text(
-          '$label: ',
-          style: const TextStyle(
-            fontSize: 13,
-            color: AppConfig.textLight,
-          ),
-        ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppConfig.textDark,
-          ),
-        ),
+        Text('$label: ', style: const TextStyle(fontSize: 13, color: AppConfig.textLight)),
+        Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppConfig.textDark)),
       ],
     );
   }
