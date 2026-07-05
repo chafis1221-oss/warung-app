@@ -45,22 +45,17 @@ class _HomeScreenState extends State<HomeScreen> {
             now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
           _lastBackPress = now;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Tekan sekali lagi untuk keluar'),
-              duration: Duration(seconds: 2),
-            ),
+            const SnackBar(content: Text('Tekan sekali lagi untuk keluar'), duration: Duration(seconds: 2)),
           );
         }
       },
       child: Scaffold(
         backgroundColor: AppConfig.backgroundWhite,
         appBar: AppBar(
-          title: const Text(AppConfig.appName,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
+          title: const Text(AppConfig.appName, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
           backgroundColor: AppConfig.primaryGreen,
           elevation: 0,
           actions: [
-            // Sort
             PopupMenuButton<SortMode>(
               icon: const Icon(Icons.sort, color: Colors.white),
               onSelected: (mode) => context.read<ProductProvider>().setSortMode(mode),
@@ -71,28 +66,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 const PopupMenuItem(value: SortMode.priceHigh, child: Text('💰💰 Mahal → Murah')),
               ],
             ),
-            // Toggle
             IconButton(
               icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view, color: Colors.white),
               onPressed: () => setState(() => _isGridView = !_isGridView),
             ),
-            // Kalkulator
             IconButton(
               icon: const Icon(Icons.calculate, color: Colors.white),
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const KalkulatorScreen())),
             ),
-            // Status — Selector biar gak rebuild semua
             Selector<ProductProvider, ConnectionStatus>(
               selector: (_, p) => p.status,
               builder: (_, status, __) {
                 final p = context.read<ProductProvider>();
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
-                  child: StatusBar(
-                    isOnline: status == ConnectionStatus.online,
-                    isLocal: p.isLocal,
-                    lastUpdated: p.lastUpdated,
-                  ),
+                  child: StatusBar(isOnline: status == ConnectionStatus.online, isLocal: p.isLocal, lastUpdated: p.lastUpdated),
                 );
               },
             ),
@@ -109,10 +97,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 onChanged: (q) => context.read<ProductProvider>().setSearch(q),
                 style: const TextStyle(fontSize: 14),
                 decoration: InputDecoration(
-                  hintText: '🔍  Cari produk...',
-                  hintStyle: const TextStyle(color: AppConfig.textLight),
-                  filled: true, fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                  hintText: '🔍  Cari produk...', hintStyle: const TextStyle(color: AppConfig.textLight),
+                  filled: true, fillColor: Colors.white, contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(icon: const Icon(Icons.clear, size: 18), onPressed: () { _searchController.clear(); context.read<ProductProvider>().setSearch(''); })
@@ -120,11 +106,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-            // Kategori — Selector
-            Selector<ProductProvider, List<String>>(
-              selector: (_, p) => p.allCategories,
-              builder: (_, categories, __) {
-                final p = context.read<ProductProvider>();
+            // Kategori — pakai Consumer biar rebuild saat selectedCategory berubah
+            Consumer<ProductProvider>(
+              builder: (_, provider, __) {
                 return Container(
                   color: AppConfig.primaryGreen,
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -132,15 +116,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: [
-                        _buildChip('Semua', '', p),
-                        ...categories.map((cat) => _buildChip(cat, cat, p)),
+                        _buildChip('Semua', '', provider),
+                        ...provider.allCategories.map((cat) => _buildChip(cat, cat, provider)),
                       ],
                     ),
                   ),
                 );
               },
             ),
-            // Product list — Selector
+            // Product list
             Expanded(
               child: Selector<ProductProvider, List<Product>>(
                 selector: (_, p) => p.products,
@@ -165,7 +149,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // List
   Widget _buildList(List<Product> products) {
     final baseUrl = context.read<ProductProvider>().api.baseUrl;
     return ListView.builder(
@@ -208,7 +191,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Grid
   Widget _buildGrid(List<Product> products) {
     final baseUrl = context.read<ProductProvider>().api.baseUrl;
     return GridView.builder(
