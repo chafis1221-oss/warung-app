@@ -36,8 +36,8 @@ class AdminForm extends StatelessWidget {
     this.onBack,
   });
 
-  Future<void> _pickImage() async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+  Future<void> _pickImage(ImageSource source) async {
+    final picked = await ImagePicker().pickImage(source: source);
     if (picked != null) onImagePicked(picked.path);
   }
 
@@ -98,7 +98,6 @@ class AdminForm extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProductProvider>();
-    final imageLabel = hasExistingImage ? '✓ Ada, pilih ganti' : 'Pilih Gambar';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -113,11 +112,37 @@ class AdminForm extends StatelessWidget {
         TextField(controller: hargaController, keyboardType: TextInputType.number, inputFormatters: [ThousandsFormatter()], decoration: const InputDecoration(labelText: 'Harga (Rp)', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10))),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(value: selectedCategory.isEmpty ? null : selectedCategory, decoration: const InputDecoration(labelText: 'Kategori', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10)), items: provider.allCategories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(), onChanged: onCategoryChanged),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
+
+        // Gambar — dua tombol
         Row(children: [
-          ElevatedButton.icon(onPressed: _pickImage, icon: const Icon(Icons.image, size: 18), label: Text(imageLabel), style: ElevatedButton.styleFrom(backgroundColor: AppConfig.lightGreen, foregroundColor: AppConfig.textDark)),
-          if (imagePath != null) ...[const SizedBox(width: 8), Text('✓ Dipilih', style: TextStyle(fontSize: 12, color: AppConfig.successGreen, fontWeight: FontWeight.w600))],
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: () => _pickImage(ImageSource.camera),
+              icon: const Icon(Icons.camera_alt, size: 18),
+              label: const Text('Kamera'),
+              style: ElevatedButton.styleFrom(backgroundColor: AppConfig.darkGreen, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 10)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: () => _pickImage(ImageSource.gallery),
+              icon: const Icon(Icons.photo_library, size: 18),
+              label: const Text('Galeri'),
+              style: ElevatedButton.styleFrom(backgroundColor: AppConfig.lightGreen, foregroundColor: AppConfig.textDark, padding: const EdgeInsets.symmetric(vertical: 10)),
+            ),
+          ),
         ]),
+        if (hasExistingImage) ...[
+          const SizedBox(height: 4),
+          Text('✓ Sudah ada gambar', style: TextStyle(fontSize: 11, color: AppConfig.successGreen)),
+        ],
+        if (imagePath != null) ...[
+          const SizedBox(height: 4),
+          Text('✓ Gambar baru dipilih', style: TextStyle(fontSize: 11, color: AppConfig.successGreen, fontWeight: FontWeight.w600)),
+        ],
+
         const SizedBox(height: 12),
         Row(children: [
           Expanded(child: ElevatedButton(onPressed: () => _submit(context), style: ElevatedButton.styleFrom(backgroundColor: AppConfig.primaryGreen, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12)), child: Text(isEditing ? 'Update' : 'Simpan'))),
