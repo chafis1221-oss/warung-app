@@ -49,8 +49,12 @@ class Product {
         (m) => '${m[1]}.',
       )}';
 
+  // Cek apakah gambar adalah URL lengkap atau hanya nama file
+  bool get isFullUrl => gambar.startsWith('http://') || gambar.startsWith('https://');
+
   String get imageUrl {
     if (gambar.isEmpty) return '';
+    if (isFullUrl) return gambar;
     return '/images/$gambar';
   }
 }
