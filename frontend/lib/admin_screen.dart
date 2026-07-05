@@ -15,31 +15,66 @@ class AdminScreen extends StatefulWidget {
 class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   Product? _currentEditProduct;
-  final GlobalKey<AdminFormState> _formKey = GlobalKey<AdminFormState>();
+
+  // Kontrol form
+  final _namaController = TextEditingController();
+  final _hargaController = TextEditingController();
+  final _newCategoryController = TextEditingController();
+  String _selectedCategory = '';
+  bool _isEditing = false;
+  int? _editId;
+  String? _imagePath;
 
   @override
   void initState() {
     super.initState();
     _currentEditProduct = widget.editProduct;
     _tabController = TabController(length: 2, vsync: this);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_currentEditProduct != null) {
+        _loadProduct(_currentEditProduct!);
+        _tabController.animateTo(0);
+      }
+    });
   }
 
   @override
   void dispose() {
+    _namaController.dispose();
+    _hargaController.dispose();
+    _newCategoryController.dispose();
     _tabController.dispose();
     super.dispose();
   }
 
-  void _onEditFromList(Product product) {
-    setState(() => _currentEditProduct = product);
-    _formKey.currentState?.loadProduct(product);
-    _tabController.animateTo(0);
+  void _loadProduct(Product p) {
+    setState(() {
+      _isEditing = true;
+      _editId = p.id;
+      _namaController.text = p.nama;
+      _hargaController.text = p.harga.toString();
+      _selectedCategory = p.kategori;
+      _imagePath = null;
+      _currentEditProduct = p;
+    });
   }
 
-  void _onSave() {
-    setState(() => _currentEditProduct = null);
-    _formKey.currentState?.reset();
-    _tabController.animateTo(1);
+  void _resetForm() {
+    _namaController.clear();
+    _hargaController.clear();
+    setState(() {
+      _isEditing = false;
+      _editId = null;
+      _selectedCategory = '';
+      _imagePath = null;
+      _currentEditProduct = null;
+    });
+  }
+
+  void _onEditFromList(Product product) {
+    _loadProduct(product);
+    _tabController.animateTo(0);
   }
 
   @override
@@ -65,9 +100,28 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         controller: _tabController,
         children: [
           AdminForm(
-            key: _formKey,
-            editProduct: _currentEditProduct,
-            onSave: _onSave,
+            namaController: _namaController,
+            hargaController: _hargaController,
+            newCategoryController: _newCategoryController,
+            selectedCategory: _selectedCategory,
+            isEditing: _isEditing,
+            editId: _editId,
+            imagePath: _imagePath,
+            onCategoryChanged: (cat) => setState(() => _selectedCategory = cat ?? ''),
+            onImagePicked: (path) => setState(() => _imagePath = path),
+            onSave: () {
+              _resetForm();
+              _tabController.animateTo(1);
+            },
+            onBack: () {
+              // Bug 1 fix: kalau dari home, pop langsung
+              if (widget.editProduct != null) {
+                Navigator.pop(context);
+              } else {
+                _resetForm();
+                _tabController.animateTo(1);
+              }
+            },
           ),
           AdminList(onEdit: _onEditFromList),
         ],
