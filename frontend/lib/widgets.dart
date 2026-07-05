@@ -3,17 +3,18 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'config.dart';
 import 'product.dart';
 
-// Card produk untuk list
 class ProductCard extends StatelessWidget {
   final Product product;
   final String imageBaseUrl;
   final VoidCallback onTap;
+  final VoidCallback? onEdit;
 
   const ProductCard({
     super.key,
     required this.product,
     required this.imageBaseUrl,
     required this.onTap,
+    this.onEdit,
   });
 
   @override
@@ -72,6 +73,12 @@ class ProductCard extends StatelessWidget {
                   ],
                 ),
               ),
+              if (onEdit != null)
+                IconButton(
+                  icon: const Icon(Icons.edit, size: 20),
+                  color: AppConfig.primaryGreen,
+                  onPressed: onEdit,
+                ),
               const Icon(Icons.chevron_right, color: AppConfig.textLight),
             ],
           ),
@@ -81,7 +88,6 @@ class ProductCard extends StatelessWidget {
   }
 }
 
-// Gambar produk dengan cache
 class ProductImage extends StatelessWidget {
   final String imageUrl;
   final String version;
@@ -134,14 +140,14 @@ class ProductImage extends StatelessWidget {
           width: size,
           height: size,
           color: AppConfig.lightGreen.withOpacity(0.2),
-          child: Icon(Icons.broken_image, color: AppConfig.textLight, size: size * 0.4),
+          child:
+              Icon(Icons.broken_image, color: AppConfig.textLight, size: size * 0.4),
         ),
       ),
     );
   }
 }
 
-// Status bar (online/offline/tunnel)
 class StatusBar extends StatelessWidget {
   final bool isOnline;
   final bool isLocal;
@@ -183,7 +189,8 @@ class StatusBar extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             label,
-            style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600),
+            style: TextStyle(
+                fontSize: 11, color: color, fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -191,7 +198,6 @@ class StatusBar extends StatelessWidget {
   }
 }
 
-// Empty state
 class EmptyState extends StatelessWidget {
   final String message;
   final IconData icon;
@@ -212,10 +218,7 @@ class EmptyState extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             message,
-            style: const TextStyle(
-              fontSize: 16,
-              color: AppConfig.textLight,
-            ),
+            style: const TextStyle(fontSize: 16, color: AppConfig.textLight),
           ),
         ],
       ),

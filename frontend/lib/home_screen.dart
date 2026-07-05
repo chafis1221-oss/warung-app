@@ -5,6 +5,7 @@ import 'product_provider.dart';
 import 'widgets.dart';
 import 'detail_screen.dart';
 import 'admin_screen.dart';
+import 'kalkulator.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,6 +16,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _searchController = TextEditingController();
+  DateTime? _lastBackPress;
 
   @override
   void initState() {
@@ -32,133 +34,171 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppConfig.backgroundWhite,
-      appBar: AppBar(
-        title: const Text(
-          AppConfig.appName,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
-        ),
-        backgroundColor: AppConfig.primaryGreen,
-        elevation: 0,
-        actions: [
-          Consumer<ProductProvider>(
-            builder: (_, provider, __) => Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: StatusBar(
-                isOnline: provider.status == ConnectionStatus.online,
-                isLocal: provider.isLocal,
-                lastUpdated: provider.lastUpdated,
-              ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final now = DateTime.now();
+        if (_lastBackPress == null ||
+            now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
+          _lastBackPress = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tekan sekali lagi untuk keluar'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppConfig.backgroundWhite,
+        appBar: AppBar(
+          title: const Text(
+            AppConfig.appName,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
             ),
           ),
-        ],
-      ),
-      body: Consumer<ProductProvider>(
-        builder: (context, provider, _) {
-          if (provider.isLoading) {
-            return const Center(
-              child: CircularProgressIndicator(color: AppConfig.primaryGreen),
-            );
-          }
-
-          return Column(
-            children: [
-              // Search bar
-              Container(
-                color: AppConfig.primaryGreen,
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (q) => provider.setSearch(q),
-                  style: const TextStyle(fontSize: 14),
-                  decoration: InputDecoration(
-                    hintText: '🔍  Cari produk...',
-                    hintStyle: const TextStyle(color: AppConfig.textLight),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide: BorderSide.none,
-                    ),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear, size: 18),
-                            onPressed: () {
-                              _searchController.clear();
-                              provider.setSearch('');
-                            },
-                          )
-                        : null,
-                  ),
+          backgroundColor: AppConfig.primaryGreen,
+          elevation: 0,
+          actions: [
+            // Tombol kalkulator
+            IconButton(
+              icon: const Icon(Icons.calculate, color: Colors.white),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const KalkulatorScreen()),
+                );
+              },
+            ),
+            Consumer<ProductProvider>(
+              builder: (_, provider, __) => Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: StatusBar(
+                  isOnline: provider.status == ConnectionStatus.online,
+                  isLocal: provider.isLocal,
+                  lastUpdated: provider.lastUpdated,
                 ),
               ),
+            ),
+          ],
+        ),
+        body: Consumer<ProductProvider>(
+          builder: (context, provider, _) {
+            if (provider.isLoading) {
+              return const Center(
+                child:
+                    CircularProgressIndicator(color: AppConfig.primaryGreen),
+              );
+            }
 
-              // Filter chips
-              if (provider.categories.isNotEmpty)
+            return Column(
+              children: [
+                // Search bar
                 Container(
                   color: AppConfig.primaryGreen,
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _buildChip('Semua', '', provider),
-                        ...provider.categories.map((cat) => _buildChip(cat, cat, provider)),
-                      ],
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (q) => provider.setSearch(q),
+                    style: const TextStyle(fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: '🔍  Cari produk...',
+                      hintStyle: const TextStyle(color: AppConfig.textLight),
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 16),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none,
+                      ),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () {
+                                _searchController.clear();
+                                provider.setSearch('');
+                              },
+                            )
+                          : null,
                     ),
                   ),
                 ),
 
-              // Product list
-              Expanded(
-                child: provider.products.isEmpty
-                    ? const EmptyState()
-                    : RefreshIndicator(
-                        color: AppConfig.primaryGreen,
-                        onRefresh: () => provider.loadProducts(),
-                        child: ListView.builder(
-                          padding: const EdgeInsets.only(top: 8, bottom: 80),
-                          itemCount: provider.products.length,
-                          itemBuilder: (_, i) {
-                            final product = provider.products[i];
-                            return ProductCard(
-                              product: product,
-                              imageBaseUrl: provider.api.baseUrl,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => DetailScreen(
-                                      productId: product.id,
-                                      imageBaseUrl: provider.api.baseUrl,
-                                    ),
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                        ),
+                // Filter chips
+                if (provider.categories.isNotEmpty)
+                  Container(
+                    color: AppConfig.primaryGreen,
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildChip('Semua', '', provider),
+                          ...provider.categories.map((cat) =>
+                              _buildChip(cat, cat, provider)),
+                        ],
                       ),
-              ),
-            ],
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppConfig.darkGreen,
-        child: const Icon(Icons.settings, color: Colors.white),
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const AdminScreen()),
-          );
-        },
+                    ),
+                  ),
+
+                // Product list
+                Expanded(
+                  child: provider.products.isEmpty
+                      ? const EmptyState()
+                      : RefreshIndicator(
+                          color: AppConfig.primaryGreen,
+                          onRefresh: () => provider.loadProducts(),
+                          child: ListView.builder(
+                            padding: const EdgeInsets.only(top: 8, bottom: 80),
+                            itemCount: provider.products.length,
+                            itemBuilder: (_, i) {
+                              final product = provider.products[i];
+                              return ProductCard(
+                                product: product,
+                                imageBaseUrl: provider.api.baseUrl,
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => DetailScreen(
+                                        productId: product.id,
+                                        imageBaseUrl: provider.api.baseUrl,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                onEdit: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const AdminScreen(),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                ),
+              ],
+            );
+          },
+        ),
+        floatingActionButton: FloatingActionButton(
+          backgroundColor: AppConfig.darkGreen,
+          child: const Icon(Icons.add, color: Colors.white),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AdminScreen()),
+            );
+          },
+        ),
       ),
     );
   }
@@ -182,7 +222,8 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedColor: AppConfig.darkGreen,
         checkmarkColor: Colors.white,
         side: BorderSide.none,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
     );
   }

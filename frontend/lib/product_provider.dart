@@ -40,10 +40,42 @@ class ProductProvider extends ChangeNotifier {
   double get maxPrice => _maxPrice;
   int get totalProducts => _products.length;
 
+  // Anti-typo: cek apakah query dekat dengan kata (Levenshtein-like sederhana)
+  bool _isFuzzyMatch(String text, String query) {
+    if (text.toLowerCase().contains(query.toLowerCase())) return true;
+
+    // Cek per kata
+    final words = text.toLowerCase().split(' ');
+    final queryWords = query.toLowerCase().split(' ');
+
+    for (final qWord in queryWords) {
+      bool found = false;
+      for (final word in words) {
+        if (word.contains(qWord) || qWord.contains(word)) {
+          found = true;
+          break;
+        }
+        // Karakter hilang/lebih (typo 1-2 karakter)
+        if ((word.length - qWord.length).abs() <= 2) {
+          int match = 0;
+          for (int i = 0; i < qWord.length && i < word.length; i++) {
+            if (qWord[i] == word[i]) match++;
+          }
+          if (match >= qWord.length - 1) {
+            found = true;
+            break;
+          }
+        }
+      }
+      if (found) continue;
+      return false;
+    }
+    return true;
+  }
+
   void _applyFilters() {
     _filteredProducts = _products.where((p) {
-      if (_searchQuery.isNotEmpty &&
-          !p.nama.toLowerCase().contains(_searchQuery.toLowerCase())) {
+      if (_searchQuery.isNotEmpty && !_isFuzzyMatch(p.nama, _searchQuery)) {
         return false;
       }
       if (_selectedCategory.isNotEmpty && p.kategori != _selectedCategory) {
@@ -180,11 +212,12 @@ class ProductProvider extends ChangeNotifier {
     return false;
   }
 
-  Future<void> createProduct(Product product) async {
+  Future<Product> createProduct(Product product) async {
     final created = await api.createProduct(product);
     _products.add(created);
     _applyFilters();
     await _saveToCache();
+    return created;
   }
 
   Future<void> updateProduct(int id, Product product) async {
