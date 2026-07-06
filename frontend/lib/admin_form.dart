@@ -108,7 +108,7 @@ class _AdminFormState extends State<AdminForm> {
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: Image.file(
-                java.io.File(_imagePath!),
+                File(_imagePath!),
                 width: double.infinity,
                 height: 200,
                 fit: BoxFit.cover,
