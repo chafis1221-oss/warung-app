@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'config.dart';
-import 'providers/product_provider.dart';
-import 'models/product.dart';
-import 'widgets/widgets.dart';
-import 'screens/admin/admin_edit.dart';
+import '../config.dart';
+import '../providers/product_provider.dart';
+import '../models/product.dart';
+import '../widgets/widgets.dart';
+import 'admin/admin_edit.dart';
 
 class DetailScreen extends StatelessWidget {
   final int productId;
