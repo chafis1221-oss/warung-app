@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'config.dart';
-import 'product_provider.dart';
-import 'widgets.dart';
-import 'home_list.dart';
-import 'detail_screen.dart';
-import 'admin_form.dart';
-import 'admin_edit.dart';
-import 'admin_screen.dart';
-import 'kalkulator.dart';
+import 'providers/product_provider.dart';
+import 'widgets/widgets.dart';
+import 'screens/home/home_list.dart';
+import 'screens/admin/admin_form.dart';
+import 'screens/admin/admin_edit.dart';
+import 'screens/admin/admin_screen.dart';
+import 'screens/kalkulator.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -36,11 +35,20 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  Future<bool> _onWillPop() async {
+    final now = DateTime.now();
+    if (_lastBackPress == null || now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
+      _lastBackPress = now;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tekan sekali lagi untuk keluar'), duration: Duration(seconds: 2)),
+      );
+      return false;
+    }
+    return true;
+  }
+
   void _onEdit(product) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => AdminEdit(product: product, fromHome: true)),
-    );
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => AdminEdit(product: product, fromHome: true)));
     if (mounted) context.read<ProductProvider>().loadProducts();
   }
 
@@ -59,30 +67,17 @@ class _HomeScreenState extends State<HomeScreen> {
     if (confirm == true) {
       try {
         await context.read<ProductProvider>().deleteProduct(product.id);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('"${product.nama}" dihapus'), backgroundColor: AppConfig.successGreen));
-        }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('"${product.nama}" dihapus'), backgroundColor: AppConfig.successGreen));
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: AppConfig.errorRed));
-        }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: AppConfig.errorRed));
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) async {
-        if (didPop) return;
-        final now = DateTime.now();
-        if (_lastBackPress == null || now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
-          _lastBackPress = now;
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tekan sekali lagi untuk keluar'), duration: Duration(seconds: 2)));
-          return;
-        }
-      },
+    return WillPopScope(
+      onWillPop: _onWillPop,
       child: Scaffold(
         backgroundColor: AppConfig.backgroundWhite,
         appBar: AppBar(
@@ -131,7 +126,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           Consumer<ProductProvider>(
             builder: (_, provider, __) {
-              final categories = provider.allCategories;
               return Container(
                 color: AppConfig.primaryGreen,
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -139,18 +133,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   scrollDirection: Axis.horizontal,
                   child: Row(children: [
                     _buildChip('Semua', '', provider),
-                    ...categories.map((cat) => _buildChip(cat, cat, provider)),
+                    ...provider.allCategories.map((cat) => _buildChip(cat, cat, provider)),
                   ]),
                 ),
               );
             },
           ),
           Expanded(
-            child: HomeList(
-              isGridView: _isGridView,
-              onEdit: _onEdit,
-              onDelete: _onDelete,
-            ),
+            child: HomeList(isGridView: _isGridView, onEdit: _onEdit, onDelete: _onDelete),
           ),
         ]),
         floatingActionButton: FloatingActionButton(

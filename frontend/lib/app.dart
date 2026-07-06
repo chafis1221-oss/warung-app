@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'config.dart';
-import 'home_screen.dart';
+import 'screens/home/home_screen.dart';
 
 class WarungMamaFahriApp extends StatelessWidget {
   const WarungMamaFahriApp({super.key});
@@ -24,28 +24,7 @@ class WarungMamaFahriApp extends StatelessWidget {
           foregroundColor: Colors.white,
           elevation: 0,
           centerTitle: false,
-          titleTextStyle: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
-        ),
-        cardTheme: CardTheme(
-          color: AppConfig.cardWhite,
-          elevation: 1,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: AppConfig.darkGreen,
-          foregroundColor: Colors.white,
-        ),
-        snackBarTheme: SnackBarThemeData(
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          titleTextStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
         ),
       ),
       home: const HomeScreen(),

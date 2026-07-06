@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'config.dart';
-import 'product.dart';
-import 'product_provider.dart';
-import 'widgets.dart';
-import 'admin_form.dart';
-import 'admin_edit.dart';
+import 'models/product.dart';
+import 'providers/product_provider.dart';
+import 'widgets/widgets.dart';
+import 'screens/admin/admin_form.dart';
+import 'screens/admin/admin_edit.dart';
 
 class AdminScreen extends StatelessWidget {
   const AdminScreen({super.key});
