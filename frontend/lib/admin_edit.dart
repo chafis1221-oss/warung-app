@@ -7,20 +7,31 @@ import 'config.dart';
 import 'product.dart';
 import 'product_provider.dart';
 
-class AdminForm extends StatefulWidget {
+class AdminEdit extends StatefulWidget {
+  final Product product;
   final bool fromHome;
-  const AdminForm({super.key, this.fromHome = false});
+  const AdminEdit({super.key, required this.product, this.fromHome = false});
 
   @override
-  State<AdminForm> createState() => _AdminFormState();
+  State<AdminEdit> createState() => _AdminEditState();
 }
 
-class _AdminFormState extends State<AdminForm> {
-  final _namaController = TextEditingController();
-  final _hargaController = TextEditingController();
+class _AdminEditState extends State<AdminEdit> {
+  late final TextEditingController _namaController;
+  late final TextEditingController _hargaController;
   final _newCategoryController = TextEditingController();
-  String _selectedCategory = '';
+  late String _selectedCategory;
   String? _imagePath;
+  bool _imageChanged = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final p = widget.product;
+    _namaController = TextEditingController(text: p.nama);
+    _hargaController = TextEditingController(text: _formatHarga(p.harga));
+    _selectedCategory = p.kategori;
+  }
 
   @override
   void dispose() {
@@ -30,12 +41,27 @@ class _AdminFormState extends State<AdminForm> {
     super.dispose();
   }
 
-  Future<void> _pickImage(ImageSource source) async {
-    final picked = await ImagePicker().pickImage(source: source);
-    if (picked != null) setState(() => _imagePath = picked.path);
+  String _formatHarga(int harga) {
+    final text = harga.toString();
+    final buffer = StringBuffer();
+    for (int i = 0; i < text.length; i++) {
+      if (i > 0 && (text.length - i) % 3 == 0) buffer.write('.');
+      buffer.write(text[i]);
+    }
+    return buffer.toString();
   }
 
-  Future<void> _submit() async {
+  Future<void> _pickImage(ImageSource source) async {
+    final picked = await ImagePicker().pickImage(source: source);
+    if (picked != null) {
+      setState(() {
+        _imagePath = picked.path;
+        _imageChanged = true;
+      });
+    }
+  }
+
+  Future<void> _update() async {
     final nama = _namaController.text.trim();
     final hargaText = _hargaController.text.replaceAll('.', '').trim();
     if (nama.isEmpty) { _snack('Nama wajib diisi', true); return; }
@@ -43,16 +69,39 @@ class _AdminFormState extends State<AdminForm> {
     if (harga == null || harga <= 0) { _snack('Harga > 0', true); return; }
 
     final provider = context.read<ProductProvider>();
-    final p = Product(id: 0, nama: nama, harga: harga, kategori: _selectedCategory);
+    final p = Product(id: widget.product.id, nama: nama, harga: harga, kategori: _selectedCategory);
     try {
-      final created = await provider.createProduct(p);
-      if (_imagePath != null) {
-        await provider.uploadImage(created.id, _imagePath!);
+      await provider.updateProduct(widget.product.id, p);
+      if (_imageChanged && _imagePath != null) {
+        await provider.uploadImage(widget.product.id, _imagePath!);
         await provider.loadProducts();
       }
-      _snack('Produk ditambahkan', false);
+      _snack('Produk diupdate', false);
       if (mounted) Navigator.pop(context);
     } catch (e) { _snack(e.toString(), true); }
+  }
+
+  Future<void> _delete() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus Produk'),
+        content: Text('Yakin hapus "${widget.product.nama}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), style: TextButton.styleFrom(foregroundColor: AppConfig.errorRed), child: const Text('Hapus')),
+        ],
+      ),
+    );
+    if (confirm == true && context.mounted) {
+      try {
+        await context.read<ProductProvider>().deleteProduct(widget.product.id);
+        if (mounted) {
+          _snack('Produk dihapus', false);
+          Navigator.pop(context);
+        }
+      } catch (e) { _snack(e.toString(), true); }
+    }
   }
 
   void _snack(String m, bool e) {
@@ -88,14 +137,23 @@ class _AdminFormState extends State<AdminForm> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProductProvider>();
+    final product = widget.product;
+
+    // Preview: gambar baru > gambar lama
+    final previewUrl = _imagePath != null
+        ? null // pakai file lokal
+        : (product.gambar.isNotEmpty
+            ? (product.isFullUrl ? product.imageUrl : '${provider.api.baseUrl}${product.imageUrl}')
+            : null);
 
     return Scaffold(
       backgroundColor: AppConfig.backgroundWhite,
       appBar: AppBar(
-        title: const Text('Tambah Produk'),
+        title: const Text('Edit Produk'),
         backgroundColor: AppConfig.primaryGreen,
         foregroundColor: Colors.white,
         actions: [
+          IconButton(icon: const Icon(Icons.delete, color: Colors.white), onPressed: _delete, tooltip: 'Hapus Produk'),
           IconButton(icon: const Icon(Icons.category, color: Colors.white), onPressed: _categoryDialog, tooltip: 'Kelola Kategori'),
         ],
       ),
@@ -106,12 +164,13 @@ class _AdminFormState extends State<AdminForm> {
           if (_imagePath != null) ...[
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.file(
-                java.io.File(_imagePath!),
-                width: double.infinity,
-                height: 200,
-                fit: BoxFit.cover,
-              ),
+              child: Image.file(File(_imagePath!), width: double.infinity, height: 200, fit: BoxFit.cover),
+            ),
+            const SizedBox(height: 12),
+          ] else if (previewUrl != null && previewUrl.isNotEmpty) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(previewUrl, width: double.infinity, height: 200, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(height: 200, color: AppConfig.lightGreen.withOpacity(0.1), child: const Center(child: Icon(Icons.broken_image, color: AppConfig.textLight)))),
             ),
             const SizedBox(height: 12),
           ],
@@ -146,13 +205,15 @@ class _AdminFormState extends State<AdminForm> {
               ),
             ),
           ]),
+          if (product.gambar.isNotEmpty && !_imageChanged)
+            Padding(padding: const EdgeInsets.only(top: 4), child: Text('✓ Sudah ada gambar', style: TextStyle(fontSize: 11, color: AppConfig.successGreen))),
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _submit,
+              onPressed: _update,
               style: ElevatedButton.styleFrom(backgroundColor: AppConfig.primaryGreen, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14)),
-              child: const Text('Simpan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              child: const Text('Update', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             ),
           ),
         ]),

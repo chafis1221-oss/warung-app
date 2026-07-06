@@ -1,10 +1,12 @@
-import 'product.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'config.dart';
 import 'product_provider.dart';
 import 'widgets.dart';
+import 'home_list.dart';
 import 'detail_screen.dart';
+import 'admin_form.dart';
+import 'admin_edit.dart';
 import 'admin_screen.dart';
 import 'kalkulator.dart';
 
@@ -34,6 +36,40 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  void _onEdit(product) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => AdminEdit(product: product, fromHome: true)),
+    );
+    if (mounted) context.read<ProductProvider>().loadProducts();
+  }
+
+  void _onDelete(product) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus Produk'),
+        content: Text('Yakin hapus "${product.nama}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), style: TextButton.styleFrom(foregroundColor: AppConfig.errorRed), child: const Text('Hapus')),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      try {
+        await context.read<ProductProvider>().deleteProduct(product.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('"${product.nama}" dihapus'), backgroundColor: AppConfig.successGreen));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: AppConfig.errorRed));
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -41,12 +77,10 @@ class _HomeScreenState extends State<HomeScreen> {
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
         final now = DateTime.now();
-        if (_lastBackPress == null ||
-            now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
+        if (_lastBackPress == null || now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
           _lastBackPress = now;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Tekan sekali lagi untuk keluar'), duration: Duration(seconds: 2)),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tekan sekali lagi untuk keluar'), duration: Duration(seconds: 2)));
+          return;
         }
       },
       child: Scaffold(
@@ -66,170 +100,68 @@ class _HomeScreenState extends State<HomeScreen> {
                 const PopupMenuItem(value: SortMode.priceHigh, child: Text('💰💰 Mahal → Murah')),
               ],
             ),
-            IconButton(
-              icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view, color: Colors.white),
-              onPressed: () => setState(() => _isGridView = !_isGridView),
-            ),
-            IconButton(
-              icon: const Icon(Icons.calculate, color: Colors.white),
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const KalkulatorScreen())),
-            ),
+            IconButton(icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view, color: Colors.white), onPressed: () => setState(() => _isGridView = !_isGridView)),
+            IconButton(icon: const Icon(Icons.calculate, color: Colors.white), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const KalkulatorScreen()))),
             Selector<ProductProvider, ConnectionStatus>(
               selector: (_, p) => p.status,
               builder: (_, status, __) {
                 final p = context.read<ProductProvider>();
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: StatusBar(isOnline: status == ConnectionStatus.online, isLocal: p.isLocal, lastUpdated: p.lastUpdated),
-                );
+                return Padding(padding: const EdgeInsets.only(right: 8), child: StatusBar(isOnline: status == ConnectionStatus.online, isLocal: p.isLocal, lastUpdated: p.lastUpdated));
               },
             ),
           ],
         ),
-        body: Column(
-          children: [
-            // Search
-            Container(
-              color: AppConfig.primaryGreen,
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: TextField(
-                controller: _searchController,
-                onChanged: (q) => context.read<ProductProvider>().setSearch(q),
-                style: const TextStyle(fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: '🔍  Cari produk...', hintStyle: const TextStyle(color: AppConfig.textLight),
-                  filled: true, fillColor: Colors.white, contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? IconButton(icon: const Icon(Icons.clear, size: 18), onPressed: () { _searchController.clear(); context.read<ProductProvider>().setSearch(''); })
-                      : null,
+        body: Column(children: [
+          Container(
+            color: AppConfig.primaryGreen,
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (q) => context.read<ProductProvider>().setSearch(q),
+              style: const TextStyle(fontSize: 14),
+              decoration: InputDecoration(
+                hintText: '🔍  Cari produk...', hintStyle: const TextStyle(color: AppConfig.textLight),
+                filled: true, fillColor: Colors.white, contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(icon: const Icon(Icons.clear, size: 18), onPressed: () { _searchController.clear(); context.read<ProductProvider>().setSearch(''); })
+                    : null,
+              ),
+            ),
+          ),
+          Consumer<ProductProvider>(
+            builder: (_, provider, __) {
+              final categories = provider.allCategories;
+              return Container(
+                color: AppConfig.primaryGreen,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(children: [
+                    _buildChip('Semua', '', provider),
+                    ...categories.map((cat) => _buildChip(cat, cat, provider)),
+                  ]),
                 ),
-              ),
+              );
+            },
+          ),
+          Expanded(
+            child: HomeList(
+              isGridView: _isGridView,
+              onEdit: _onEdit,
+              onDelete: _onDelete,
             ),
-            // Kategori — pakai Consumer biar rebuild saat selectedCategory berubah
-            Consumer<ProductProvider>(
-              builder: (_, provider, __) {
-                return Container(
-                  color: AppConfig.primaryGreen,
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _buildChip('Semua', '', provider),
-                        ...provider.allCategories.map((cat) => _buildChip(cat, cat, provider)),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-            // Product list
-            Expanded(
-              child: Selector<ProductProvider, List<Product>>(
-                selector: (_, p) => p.products,
-                builder: (_, products, __) {
-                  if (products.isEmpty) return const EmptyState();
-                  return RefreshIndicator(
-                    color: AppConfig.primaryGreen,
-                    onRefresh: () => context.read<ProductProvider>().loadProducts(),
-                    child: _isGridView ? _buildGrid(products) : _buildList(products),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
+          ),
+        ]),
         floatingActionButton: FloatingActionButton(
           backgroundColor: AppConfig.darkGreen,
           child: const Icon(Icons.add, color: Colors.white),
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminScreen())),
+          onPressed: () async {
+            await Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminForm(fromHome: true)));
+            if (mounted) context.read<ProductProvider>().loadProducts();
+          },
         ),
       ),
-    );
-  }
-
-  Widget _buildList(List<Product> products) {
-    final baseUrl = context.read<ProductProvider>().api.baseUrl;
-    return ListView.builder(
-      padding: const EdgeInsets.only(top: 8, bottom: 80),
-      itemCount: products.length,
-      itemBuilder: (_, i) {
-        final p = products[i];
-        final imageUrl = p.gambar.isNotEmpty ? (p.isFullUrl ? p.imageUrl : '$baseUrl${p.imageUrl}') : '';
-        return Card(
-          color: AppConfig.cardWhite, elevation: 1,
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: InkWell(
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DetailScreen(productId: p.id, imageBaseUrl: baseUrl))),
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  ProductImage(imageUrl: imageUrl, version: p.versiGambar, size: 56),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(p.nama, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppConfig.textDark), maxLines: 2, overflow: TextOverflow.ellipsis),
-                      const SizedBox(height: 4),
-                      Text(p.kategori, style: const TextStyle(fontSize: 12, color: AppConfig.textLight)),
-                      const SizedBox(height: 4),
-                      Text(p.hargaFormatted, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppConfig.darkGreen)),
-                    ]),
-                  ),
-                  IconButton(icon: const Icon(Icons.edit, size: 20), color: AppConfig.primaryGreen,
-                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminScreen(editProduct: p)))),
-                  const Icon(Icons.chevron_right, color: AppConfig.textLight),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildGrid(List<Product> products) {
-    final baseUrl = context.read<ProductProvider>().api.baseUrl;
-    return GridView.builder(
-      padding: const EdgeInsets.all(12),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2, childAspectRatio: 0.65, crossAxisSpacing: 10, mainAxisSpacing: 10,
-      ),
-      itemCount: products.length,
-      itemBuilder: (_, i) {
-        final p = products[i];
-        final imageUrl = p.gambar.isNotEmpty ? (p.isFullUrl ? p.imageUrl : '$baseUrl${p.imageUrl}') : '';
-        return Card(
-          color: AppConfig.cardWhite, elevation: 1,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: InkWell(
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DetailScreen(productId: p.id, imageBaseUrl: baseUrl))),
-            borderRadius: BorderRadius.circular(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                    child: ProductImage(imageUrl: imageUrl, version: p.versiGambar, size: double.infinity),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(p.nama, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppConfig.textDark), maxLines: 2, overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 4),
-                    Text(p.hargaFormatted, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppConfig.darkGreen)),
-                  ]),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 

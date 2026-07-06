@@ -1,7 +1,7 @@
-name: Build APK
+name: Build & Release
 
 on:
-  workflow_dispatch:  # Manual aja
+  workflow_dispatch:
 
 env:
   FLUTTER_VERSION: '3.24.0'
@@ -19,6 +19,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      # Keystore
       - name: Create keystore
         run: |
           mkdir -p keystore
@@ -34,23 +35,47 @@ jobs:
           keyPassword=${{ secrets.KEY_PASSWORD }}
           PROPS
 
+      # Build APK
       - name: Build APK
         run: |
           cd frontend
           flutter pub get
           flutter build apk --release
 
-      - name: Upload APK
+      # Build PWA
+      - name: Build PWA
+        run: |
+          cd frontend
+          flutter build web --release
+
+      # Zip PWA
+      - name: Zip PWA
+        run: |
+          cd frontend/build/web
+          zip -r ../../../warung-pwa.zip .
+
+      # Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-release
           path: frontend/build/app/outputs/flutter-apk/app-release.apk
 
+      # Upload PWA
+      - name: Upload PWA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pwa-release
+          path: warung-pwa.zip
+
+      # Create Release
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.run_number }}
           name: Release v${{ github.run_number }}
-          files: frontend/build/app/outputs/flutter-apk/app-release.apk
+          files: |
+            frontend/build/app/outputs/flutter-apk/app-release.apk
+            warung-pwa.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

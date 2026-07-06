@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:fuse/fuse.dart';
 import 'product.dart';
 import 'api_service.dart';
 
@@ -22,11 +24,7 @@ class ProductProvider extends ChangeNotifier {
   SortMode _sortMode = SortMode.defaultSort;
 
   static const List<String> defaultCategories = [
-    'Sembako',
-    'Minuman',
-    'Makanan Instan',
-    'Camilan',
-    'Kebersihan',
+    'Sembako', 'Minuman', 'Makanan Instan', 'Camilan', 'Kebersihan',
   ];
 
   List<String> _customCategories = [];
@@ -60,7 +58,167 @@ class ProductProvider extends ChangeNotifier {
   double get maxPrice => _maxPrice;
   int get totalProducts => _products.length;
 
-  // Sort
+  // =============================================
+  // SEARCH ENGINE MODERN
+  // =============================================
+
+  /// Normalisasi teks
+  String _normalize(String text) {
+    return text
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^\w\s]'), '') // hapus tanda baca
+        .replaceAll(RegExp(r'\s+'), ' ')    // rapikan spasi
+        .trim();
+  }
+
+  /// Jaro-Winkler similarity
+  double _jaroWinkler(String a, String b) {
+    if (a == b) return 1.0;
+    if (a.isEmpty || b.isEmpty) return 0.0;
+
+    final s1 = a.length <= b.length ? a : b;
+    final s2 = a.length <= b.length ? b : a;
+
+    final matchDistance = (s2.length ~/ 2) - 1;
+    final s1Matches = List<bool>.filled(s1.length, false);
+    final s2Matches = List<bool>.filled(s2.length, false);
+
+    int matches = 0;
+    for (int i = 0; i < s1.length; i++) {
+      final start = i - matchDistance > 0 ? i - matchDistance : 0;
+      final end = i + matchDistance + 1 < s2.length ? i + matchDistance + 1 : s2.length;
+      for (int j = start; j < end; j++) {
+        if (!s2Matches[j] && s1[i] == s2[j]) {
+          s1Matches[i] = true;
+          s2Matches[j] = true;
+          matches++;
+          break;
+        }
+      }
+    }
+    if (matches == 0) return 0.0;
+
+    int transpositions = 0;
+    int k = 0;
+    for (int i = 0; i < s1.length; i++) {
+      if (s1Matches[i]) {
+        while (!s2Matches[k]) k++;
+        if (s1[i] != s2[k]) transpositions++;
+        k++;
+      }
+    }
+
+    final jaro = (matches / s1.length +
+        matches / s2.length +
+        (matches - transpositions / 2) / matches) /
+        3.0;
+
+    int prefix = 0;
+    for (int i = 0; i < min(4, s1.length); i++) {
+      if (s1[i] == s2[i]) prefix++; else break;
+    }
+
+    return jaro + (prefix * 0.1 * (1 - jaro));
+  }
+
+  /// Levenshtein distance
+  int _levenshtein(String a, String b) {
+    final costs = List.generate(a.length + 1, (i) => List.filled(b.length + 1, 0));
+    for (int i = 0; i <= a.length; i++) costs[i][0] = i;
+    for (int j = 0; j <= b.length; j++) costs[0][j] = j;
+    for (int i = 1; i <= a.length; i++) {
+      for (int j = 1; j <= b.length; j++) {
+        costs[i][j] = a[i - 1] == b[j - 1]
+            ? costs[i - 1][j - 1]
+            : 1 + min(costs[i - 1][j], min(costs[i][j - 1], costs[i - 1][j - 1]));
+      }
+    }
+    return costs[a.length][b.length];
+  }
+
+  /// Fuzzy search gabungan Fuse + Jaro-Winkler + Levenshtein
+  List<Product> _fuzzySearch(String query) {
+    if (query.isEmpty) return List.from(_products);
+
+    final normalizedQuery = _normalize(query);
+    final queryWords = normalizedQuery.split(' ');
+
+    // 1. Fuse (mesin utama)
+    final fuse = Fuse(
+      _products.map((p) => {
+        'id': p.id,
+        'nama': _normalize(p.nama),
+      }).toList(),
+      options: FuseOptions(
+        keys: ['nama'],
+        threshold: 0.5,
+        distance: 100,
+      ),
+    );
+
+    // Cari per kata, gabungkan hasil
+    Set<int> allMatchedIds = {};
+    for (final word in queryWords) {
+      final results = fuse.search(word);
+      for (final r in results) {
+        allMatchedIds.add(r.item['id'] as int);
+      }
+    }
+
+    // 2. Jaro-Winkler untuk typo kecil (jika Fuse kurang hasil)
+    if (allMatchedIds.length < 3) {
+      final jwThreshold = 0.80;
+      for (final p in _products) {
+        final normalizedNama = _normalize(p.nama);
+        final namaWords = normalizedNama.split(' ');
+        for (final qWord in queryWords) {
+          for (final nWord in namaWords) {
+            if (_jaroWinkler(qWord, nWord) >= jwThreshold) {
+              allMatchedIds.add(p.id);
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // 3. Levenshtein untuk perbandingan akhir
+    final candidates = _products.where((p) => allMatchedIds.contains(p.id)).toList();
+    if (candidates.isEmpty && queryWords.length == 1 && queryWords[0].length >= 3) {
+      // Fallback: cari Levenshtein terdekat
+      int bestDist = 999;
+      Product? best;
+      for (final p in _products) {
+        final dist = _levenshtein(queryWords[0], _normalize(p.nama));
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = p;
+        }
+      }
+      if (best != null && bestDist <= 3) {
+        return [best];
+      }
+    }
+
+    return candidates;
+  }
+
+  void _applyFilters() {
+    _filteredProducts = _fuzzySearch(_searchQuery)
+        .where((p) {
+          if (_selectedCategory.isNotEmpty && p.kategori != _selectedCategory) return false;
+          if (p.harga < _minPrice || p.harga > _maxPrice) return false;
+          return true;
+        })
+        .toList();
+    _sortProducts();
+    notifyListeners();
+  }
+
+  // =============================================
+  // SORT
+  // =============================================
+
   void setSortMode(SortMode mode) {
     _sortMode = mode;
     _applyFilters();
@@ -70,10 +228,10 @@ class ProductProvider extends ChangeNotifier {
     switch (_sortMode) {
       case SortMode.defaultSort:
       case SortMode.nameAsc:
-        _filteredProducts.sort((a, b) => a.nama.toLowerCase().compareTo(b.nama.toLowerCase()));
+        _filteredProducts.sort((a, b) => a.nama.compareTo(b.nama));
         break;
       case SortMode.nameDesc:
-        _filteredProducts.sort((a, b) => b.nama.toLowerCase().compareTo(a.nama.toLowerCase()));
+        _filteredProducts.sort((a, b) => b.nama.compareTo(a.nama));
         break;
       case SortMode.priceLow:
         _filteredProducts.sort((a, b) => a.harga.compareTo(b.harga));
@@ -84,7 +242,10 @@ class ProductProvider extends ChangeNotifier {
     }
   }
 
-  // Kelola custom categories
+  // =============================================
+  // KATEGORI CUSTOM
+  // =============================================
+
   void addCategory(String cat) {
     cat = cat.trim();
     if (cat.isEmpty || _customCategories.contains(cat)) return;
@@ -114,43 +275,9 @@ class ProductProvider extends ChangeNotifier {
     }
   }
 
-  bool _isFuzzyMatch(String text, String query) {
-    if (text.toLowerCase().contains(query.toLowerCase())) return true;
-    final words = text.toLowerCase().split(' ');
-    final queryWords = query.toLowerCase().split(' ');
-    for (final qWord in queryWords) {
-      bool found = false;
-      for (final word in words) {
-        if (word.contains(qWord) || qWord.contains(word)) {
-          found = true;
-          break;
-        }
-        if ((word.length - qWord.length).abs() <= 2) {
-          int match = 0;
-          for (int i = 0; i < qWord.length && i < word.length; i++) {
-            if (qWord[i] == word[i]) match++;
-          }
-          if (match >= qWord.length - 2 && qWord.length >= 3) {
-            found = true;
-            break;
-          }
-        }
-      }
-      if (!found) return false;
-    }
-    return true;
-  }
-
-  void _applyFilters() {
-    _filteredProducts = _products.where((p) {
-      if (_searchQuery.isNotEmpty && !_isFuzzyMatch(p.nama, _searchQuery)) return false;
-      if (_selectedCategory.isNotEmpty && p.kategori != _selectedCategory) return false;
-      if (p.harga < _minPrice || p.harga > _maxPrice) return false;
-      return true;
-    }).toList();
-    _sortProducts();
-    notifyListeners();
-  }
+  // =============================================
+  // FILTER UI
+  // =============================================
 
   void setSearch(String query) {
     _searchQuery = query;
@@ -177,12 +304,13 @@ class ProductProvider extends ChangeNotifier {
   }
 
   Product? getById(int id) {
-    try {
-      return _products.firstWhere((p) => p.id == id);
-    } catch (_) {
-      return null;
-    }
+    try { return _products.firstWhere((p) => p.id == id); }
+    catch (_) { return null; }
   }
+
+  // =============================================
+  // DATA LOADING & CACHE
+  // =============================================
 
   Future<bool> loadProducts() async {
     _isLoading = true;
@@ -192,12 +320,9 @@ class ProductProvider extends ChangeNotifier {
       if (connected) {
         final version = await api.getVersion();
         bool needFetch = true;
-        if (version != null && !api.isVersionChanged(version)) {
-          needFetch = false;
-        }
+        if (version != null && !api.isVersionChanged(version)) needFetch = false;
         if (needFetch) {
-          final products = await api.fetchProducts();
-          _products = products;
+          _products = await api.fetchProducts();
           _lastUpdated = DateTime.now();
           await _saveToCache();
         } else {
@@ -248,6 +373,10 @@ class ProductProvider extends ChangeNotifier {
     }
     return false;
   }
+
+  // =============================================
+  // CRUD
+  // =============================================
 
   Future<Product> createProduct(Product product) async {
     final created = await api.createProduct(product);
