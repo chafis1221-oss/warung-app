@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:fuse/fuse.dart';
 import 'product.dart';
 import 'api_service.dart';
 
@@ -134,50 +133,65 @@ class ProductProvider extends ChangeNotifier {
       }
     }
     return costs[a.length][b.length];
-  }
 
-  /// Fuzzy search gabungan Fuse + Jaro-Winkler + Levenshtein
+  /// Fuzzy search: Jaro-Winkler + Levenshtein + contains
   List<Product> _fuzzySearch(String query) {
     if (query.isEmpty) return List.from(_products);
 
     final normalizedQuery = _normalize(query);
     final queryWords = normalizedQuery.split(' ');
 
-    // 1. Fuse (mesin utama)
-    final fuse = Fuse(
-      _products.map((p) => {
-        'id': p.id,
-        'nama': _normalize(p.nama),
-      }).toList(),
-      options: FuseOptions(
-        keys: ['nama'],
-        threshold: 0.5,
-        distance: 100,
-      ),
-    );
+    Set<int> matchedIds = {};
 
-    // Cari per kata, gabungkan hasil
-    Set<int> allMatchedIds = {};
-    for (final word in queryWords) {
-      final results = fuse.search(word);
-      for (final r in results) {
-        allMatchedIds.add(r.item['id'] as int);
+    for (final p in _products) {
+      final normalizedNama = _normalize(p.nama);
+      final namaWords = normalizedNama.split(' ');
+
+      bool allWordsMatch = true;
+      for (final qWord in queryWords) {
+        bool wordMatched = false;
+
+        for (final nWord in namaWords) {
+          // 1. Contains
+          if (nWord.contains(qWord) || qWord.contains(nWord)) {
+            wordMatched = true;
+            break;
+          }
+
+          // 2. Jaro-Winkler (typo kecil)
+          if (_jaroWinkler(qWord, nWord) >= 0.80) {
+            wordMatched = true;
+            break;
+          }
+
+          // 3. Levenshtein (karakter beda 1-2)
+          if (qWord.length >= 3 && _levenshtein(qWord, nWord) <= 2) {
+            wordMatched = true;
+            break;
+          }
+        }
+
+        if (!wordMatched) {
+          allWordsMatch = false;
+          break;
+        }
+      }
+
+      if (allWordsMatch) {
+        matchedIds.add(p.id);
+        continue;
+      }
+
+      // Fallback: cek full nama
+      if (queryWords.length == 1 && _jaroWinkler(normalizedQuery, normalizedNama) >= 0.75) {
+        matchedIds.add(p.id);
       }
     }
 
-    // 2. Jaro-Winkler untuk typo kecil (jika Fuse kurang hasil)
-    if (allMatchedIds.length < 3) {
-      final jwThreshold = 0.80;
-      for (final p in _products) {
-        final normalizedNama = _normalize(p.nama);
-        final namaWords = normalizedNama.split(' ');
-        for (final qWord in queryWords) {
-          for (final nWord in namaWords) {
-            if (_jaroWinkler(qWord, nWord) >= jwThreshold) {
-              allMatchedIds.add(p.id);
-              break;
-            }
-          }
+    return _products.where((p) => matchedIds.contains(p.id)).toList();
+  }
+  }
+
         }
       }
     }
