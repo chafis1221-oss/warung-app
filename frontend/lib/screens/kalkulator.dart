@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'config.dart';
+import '../../config.dart';
 
 class KalkulatorScreen extends StatefulWidget {
   const KalkulatorScreen({super.key});

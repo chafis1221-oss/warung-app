@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../config.dart';
-import 'models/product.dart';
+import '../../models/product.dart';
 import '../../providers/product_provider.dart';
 import '../../widgets/widgets.dart';
-import 'screens/detail_screen.dart';
+import '../detail_screen.dart';
 
 class HomeList extends StatelessWidget {
   final bool isGridView;

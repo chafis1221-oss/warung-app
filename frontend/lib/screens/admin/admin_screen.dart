@@ -4,8 +4,8 @@ import '../../config.dart';
 import '../../models/product.dart';
 import '../../providers/product_provider.dart';
 import '../../widgets/widgets.dart';
-import 'screens/admin/admin_form.dart';
-import 'screens/admin/admin_edit.dart';
+import 'admin_form.dart';
+import 'admin_edit.dart';
 
 class AdminScreen extends StatelessWidget {
   const AdminScreen({super.key});
