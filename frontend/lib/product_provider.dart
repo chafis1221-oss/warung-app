@@ -58,30 +58,25 @@ class ProductProvider extends ChangeNotifier {
   int get totalProducts => _products.length;
 
   // =============================================
-  // SEARCH ENGINE MODERN
+  // FUZZY SEARCH (Jaro-Winkler + Levenshtein)
   // =============================================
 
-  /// Normalisasi teks
   String _normalize(String text) {
     return text
         .toLowerCase()
-        .replaceAll(RegExp(r'[^\w\s]'), '') // hapus tanda baca
-        .replaceAll(RegExp(r'\s+'), ' ')    // rapikan spasi
+        .replaceAll(RegExp(r'[^\w\s]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
   }
 
-  /// Jaro-Winkler similarity
   double _jaroWinkler(String a, String b) {
     if (a == b) return 1.0;
     if (a.isEmpty || b.isEmpty) return 0.0;
-
     final s1 = a.length <= b.length ? a : b;
     final s2 = a.length <= b.length ? b : a;
-
     final matchDistance = (s2.length ~/ 2) - 1;
     final s1Matches = List<bool>.filled(s1.length, false);
     final s2Matches = List<bool>.filled(s2.length, false);
-
     int matches = 0;
     for (int i = 0; i < s1.length; i++) {
       final start = i - matchDistance > 0 ? i - matchDistance : 0;
@@ -96,7 +91,6 @@ class ProductProvider extends ChangeNotifier {
       }
     }
     if (matches == 0) return 0.0;
-
     int transpositions = 0;
     int k = 0;
     for (int i = 0; i < s1.length; i++) {
@@ -106,21 +100,14 @@ class ProductProvider extends ChangeNotifier {
         k++;
       }
     }
-
-    final jaro = (matches / s1.length +
-        matches / s2.length +
-        (matches - transpositions / 2) / matches) /
-        3.0;
-
+    final jaro = (matches / s1.length + matches / s2.length + (matches - transpositions / 2) / matches) / 3.0;
     int prefix = 0;
     for (int i = 0; i < min(4, s1.length); i++) {
       if (s1[i] == s2[i]) prefix++; else break;
     }
-
     return jaro + (prefix * 0.1 * (1 - jaro));
   }
 
-  /// Levenshtein distance
   int _levenshtein(String a, String b) {
     final costs = List.generate(a.length + 1, (i) => List.filled(b.length + 1, 0));
     for (int i = 0; i <= a.length; i++) costs[i][0] = i;
@@ -133,89 +120,52 @@ class ProductProvider extends ChangeNotifier {
       }
     }
     return costs[a.length][b.length];
+  }
 
-  /// Fuzzy search: Jaro-Winkler + Levenshtein + contains
   List<Product> _fuzzySearch(String query) {
     if (query.isEmpty) return List.from(_products);
-
     final normalizedQuery = _normalize(query);
     final queryWords = normalizedQuery.split(' ');
-
     Set<int> matchedIds = {};
-
     for (final p in _products) {
       final normalizedNama = _normalize(p.nama);
       final namaWords = normalizedNama.split(' ');
-
       bool allWordsMatch = true;
       for (final qWord in queryWords) {
         bool wordMatched = false;
-
         for (final nWord in namaWords) {
-          // 1. Contains
           if (nWord.contains(qWord) || qWord.contains(nWord)) {
             wordMatched = true;
             break;
           }
-
-          // 2. Jaro-Winkler (typo kecil)
           if (_jaroWinkler(qWord, nWord) >= 0.80) {
             wordMatched = true;
             break;
           }
-
-          // 3. Levenshtein (karakter beda 1-2)
           if (qWord.length >= 3 && _levenshtein(qWord, nWord) <= 2) {
             wordMatched = true;
             break;
           }
         }
-
         if (!wordMatched) {
           allWordsMatch = false;
           break;
         }
       }
-
       if (allWordsMatch) {
         matchedIds.add(p.id);
         continue;
       }
-
-      // Fallback: cek full nama
       if (queryWords.length == 1 && _jaroWinkler(normalizedQuery, normalizedNama) >= 0.75) {
         matchedIds.add(p.id);
       }
     }
-
     return _products.where((p) => matchedIds.contains(p.id)).toList();
   }
-  }
 
-        }
-      }
-    }
-
-    // 3. Levenshtein untuk perbandingan akhir
-    final candidates = _products.where((p) => allMatchedIds.contains(p.id)).toList();
-    if (candidates.isEmpty && queryWords.length == 1 && queryWords[0].length >= 3) {
-      // Fallback: cari Levenshtein terdekat
-      int bestDist = 999;
-      Product? best;
-      for (final p in _products) {
-        final dist = _levenshtein(queryWords[0], _normalize(p.nama));
-        if (dist < bestDist) {
-          bestDist = dist;
-          best = p;
-        }
-      }
-      if (best != null && bestDist <= 3) {
-        return [best];
-      }
-    }
-
-    return candidates;
-  }
+  // =============================================
+  // FILTER & SORT
+  // =============================================
 
   void _applyFilters() {
     _filteredProducts = _fuzzySearch(_searchQuery)
@@ -229,14 +179,12 @@ class ProductProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // =============================================
-  // SORT
-  // =============================================
+  void setSearch(String query) { _searchQuery = query; _applyFilters(); }
+  void setCategory(String category) { _selectedCategory = category; _applyFilters(); }
+  void setPriceRange(double min, double max) { _minPrice = min; _maxPrice = max; _applyFilters(); }
+  void resetFilters() { _searchQuery = ''; _selectedCategory = ''; _minPrice = 0; _maxPrice = double.infinity; _applyFilters(); }
 
-  void setSortMode(SortMode mode) {
-    _sortMode = mode;
-    _applyFilters();
-  }
+  void setSortMode(SortMode mode) { _sortMode = mode; _applyFilters(); }
 
   void _sortProducts() {
     switch (_sortMode) {
@@ -256,14 +204,18 @@ class ProductProvider extends ChangeNotifier {
     }
   }
 
+  Product? getById(int id) {
+    try { return _products.firstWhere((p) => p.id == id); }
+    catch (_) { return null; }
+  }
+
   // =============================================
   // KATEGORI CUSTOM
   // =============================================
 
   void addCategory(String cat) {
     cat = cat.trim();
-    if (cat.isEmpty || _customCategories.contains(cat)) return;
-    if (defaultCategories.contains(cat)) return;
+    if (cat.isEmpty || _customCategories.contains(cat) || defaultCategories.contains(cat)) return;
     _customCategories.add(cat);
     _customCategories.sort();
     _saveCategoriesToCache();
@@ -284,42 +236,7 @@ class ProductProvider extends ChangeNotifier {
   void _loadCategoriesFromCache() {
     final box = Hive.box('products');
     final data = box.get('custom_categories');
-    if (data != null && data is List) {
-      _customCategories = data.cast<String>();
-    }
-  }
-
-  // =============================================
-  // FILTER UI
-  // =============================================
-
-  void setSearch(String query) {
-    _searchQuery = query;
-    _applyFilters();
-  }
-
-  void setCategory(String category) {
-    _selectedCategory = category;
-    _applyFilters();
-  }
-
-  void setPriceRange(double min, double max) {
-    _minPrice = min;
-    _maxPrice = max;
-    _applyFilters();
-  }
-
-  void resetFilters() {
-    _searchQuery = '';
-    _selectedCategory = '';
-    _minPrice = 0;
-    _maxPrice = double.infinity;
-    _applyFilters();
-  }
-
-  Product? getById(int id) {
-    try { return _products.firstWhere((p) => p.id == id); }
-    catch (_) { return null; }
+    if (data != null && data is List) _customCategories = data.cast<String>();
   }
 
   // =============================================
