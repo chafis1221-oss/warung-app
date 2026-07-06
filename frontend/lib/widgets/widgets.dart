@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'config.dart';
-import 'models/product.dart';
+import '../config.dart';
+import '../models/product.dart';
 
 // Card untuk list (horizontal)
 class ProductCard extends StatelessWidget {

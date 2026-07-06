@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
-import 'config.dart';
-import 'models/product.dart';
-import 'providers/product_provider.dart';
+import '../../config.dart';
+import '../../models/product.dart';
+import '../../providers/product_provider.dart';
 
 class AdminEdit extends StatefulWidget {
   final Product product;

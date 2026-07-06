@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'config.dart';
-import 'models/product.dart';
+import '../config.dart';
+import '../models/product.dart';
 
 class ApiService {
   String _baseUrl = AppConfig.localBaseUrl;

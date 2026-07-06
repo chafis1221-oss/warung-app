@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'config.dart';
-import 'providers/product_provider.dart';
-import 'widgets/widgets.dart';
-import 'screens/home/home_list.dart';
-import 'screens/admin/admin_form.dart';
-import 'screens/admin/admin_edit.dart';
-import 'screens/admin/admin_screen.dart';
-import 'screens/kalkulator.dart';
+import '../../config.dart';
+import '../../providers/product_provider.dart';
+import '../../widgets/widgets.dart';
+import 'home_list.dart';
+import '../admin/admin_form.dart';
+import '../admin/admin_edit.dart';
+import '../admin/admin_screen.dart';
+import '../kalkulator.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
