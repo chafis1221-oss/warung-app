@@ -26,7 +26,7 @@ class SearchService {
     final fuse = Fuzzy(
       namaList,
       options: FuzzyOptions(
-        threshold: 0.35,
+        threshold: 0.40,
         distance: 100,
       ),
     );
