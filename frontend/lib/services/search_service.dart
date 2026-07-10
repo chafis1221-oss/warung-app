@@ -12,48 +12,46 @@ class SearchService {
 
   static List<Product> fuzzySearch(String query, List<Product> products) {
     if (query.isEmpty) return List.from(products);
-    
-    final normalizedQuery = normalize(query);
-    
-    // Query pendek: exact contains only
-    if (normalizedQuery.length < 3) {
-      return products.where((p) => normalize(p.nama).contains(normalizedQuery)).toList();
+    if (query.length < 2) {
+      final q = normalize(query);
+      return products.where((p) => normalize(p.nama).contains(q)).toList();
     }
 
-    final queryWords = normalizedQuery.split(' ').where((w) => w.length >= 2).toList();
-    if (queryWords.isEmpty) return List.from(products);
+    final normalizedQuery = normalize(query);
+    final queryWords = normalizedQuery.split(' ');
 
+    // Siapkan list string untuk Fuse
     final namaList = products.map((p) => normalize(p.nama)).toList();
 
     final fuse = Fuzzy(
       namaList,
       options: FuzzyOptions(
-        threshold: 0.45,  // Lebih strict
-        distance: 50,
+        threshold: 0.35,
+        distance: 100,
       ),
     );
 
     Set<String> matchedNames = {};
 
     for (final word in queryWords) {
+      if (word.length < 2) continue;
       final results = fuse.search(word);
       for (final r in results) {
+        // r.item adalah string (elemen dari namaList)
         matchedNames.add(r.item.toString());
       }
     }
 
-    // Fallback: contains (hanya jika hasil fuse sedikit)
+    // Fallback: contains
     if (matchedNames.length < 2) {
       for (final p in products) {
         final nama = normalize(p.nama);
-        // Full contains
         if (nama.contains(normalizedQuery)) {
           matchedNames.add(nama);
         }
-        // Per kata contains
         for (final nWord in nama.split(' ')) {
           for (final qWord in queryWords) {
-            if (qWord.length >= 3 && nWord.contains(qWord)) {
+            if (qWord.length >= 2 && nWord.contains(qWord)) {
               matchedNames.add(nama);
             }
           }
