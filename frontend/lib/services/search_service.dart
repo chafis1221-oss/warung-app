@@ -31,36 +31,34 @@ class SearchService {
       ),
     );
 
-    Set<int> matchedIds = {};
+    Set<String> matchedNames = {};
 
     for (final word in queryWords) {
       if (word.length < 2) continue;
       final results = fuse.search(word);
       for (final r in results) {
-        final idx = r.index;
-        if (idx < products.length) {
-          matchedIds.add(products[idx].id);
-        }
+        // r.item adalah string (elemen dari namaList)
+        matchedNames.add(r.item.toString());
       }
     }
 
     // Fallback: contains
-    if (matchedIds.length < 2) {
+    if (matchedNames.length < 2) {
       for (final p in products) {
         final nama = normalize(p.nama);
         if (nama.contains(normalizedQuery)) {
-          matchedIds.add(p.id);
+          matchedNames.add(nama);
         }
         for (final nWord in nama.split(' ')) {
           for (final qWord in queryWords) {
             if (qWord.length >= 2 && nWord.contains(qWord)) {
-              matchedIds.add(p.id);
+              matchedNames.add(nama);
             }
           }
         }
       }
     }
 
-    return products.where((p) => matchedIds.contains(p.id)).toList();
+    return products.where((p) => matchedNames.contains(normalize(p.nama))).toList();
   }
 }
